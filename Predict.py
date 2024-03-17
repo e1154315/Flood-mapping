@@ -11,28 +11,32 @@ import zipfile
 
 def main():
     # 加载模型时提供自定义损失函数的定义
-    model = load_model('unet_band1_val_best.hdf5',
-                       custom_objects={'dice_loss': dice_loss, 'dice_coefficient': dice_coefficient, 'iou': iou})
-
+    model_name='unet_band1_val_best.hdf5'
     # 指定要预测的图片目录和保存掩码的目录
     predict_dir = 'data/filter/image/band_1'
     save_dir = 'data/test_band_1'
-
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+    #指定输出的mask的阈值
     mask_value=0.5
-
-    # 遍历目录中的所有图片，对每张图片进行预测并保存掩码
-    for image_file in os.listdir(predict_dir):
-        image_path = os.path.join(predict_dir, image_file)
-        predict_oneband_save(model, image_path, target_size=(256, 256), original_size=(512, 512), mask_value=mask_value, save_path=save_dir)
-
-    print("预测完成，掩码已保存至：", save_dir)
-
+    #输入网络的图片大小
+    target_size=(256, 256)
+    #原始预测图片大小
+    original_size=(512, 512)
     # 指定目标目录和压缩文件名
     target_directory = "data/test_result"
     zip_file_name = "data/test_result/dhdata.zip"
 
+
+    #加载模型预测图片以及打包
+    model = load_model(model_name,
+                       custom_objects={'dice_loss': dice_loss, 'dice_coefficient': dice_coefficient, 'iou': iou})
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    # 遍历目录中的所有图片，对每张图片进行预测并保存掩码
+    for image_file in os.listdir(predict_dir):
+        image_path = os.path.join(predict_dir, image_file)
+        #可以增加mode，使快速区分oneband以及多band
+        predict_oneband_save(model, image_path, target_size=target_size, original_size=original_size, mask_value=mask_value, save_path=save_dir)
+    print("预测完成，掩码已保存至：", save_dir)
     # 调用函数进行压缩
     zip_images(target_directory, zip_file_name)
 
