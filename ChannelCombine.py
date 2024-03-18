@@ -5,9 +5,9 @@ from rasterio import merge
 
 def main():
     # 调整为实际的文件夹路径
-    band1_folder = 'data/set2/image_filter2/band_1'
-    band2_folder = 'data/set2/image_filter2/band_2'
-    output_folder = 'data/set2/image_filter2/band_12'
+    band1_folder = 'data/train/filter/set2_0.01/band_1'
+    band2_folder = 'data/train/filter/set2_0.01/band_2'
+    output_folder = 'data/train/filter/set2_0.01/band_12'
 
     merge_two_bands_and_save(band1_folder, band2_folder, output_folder)
 
