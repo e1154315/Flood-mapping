@@ -21,8 +21,8 @@ def main():
     image_folder = 'data/train/filter/set1_0.05/band_1'  # 图像文件夹路径
     mask_folder = 'data/train/filter/set1_0.05/labels'  # 掩模文件夹路径
 
-    image_folder = 'data/train/filter/set2_0.01/band_12'
-    mask_folder = 'data/train/filter/set2_0.01/labels'
+    #image_folder = 'data/train/filter/set2_0.01/band_12'
+    #mask_folder = 'data/train/filter/set2_0.01/labels'
     # 分割训练集和验证集
     train_images, train_masks, val_images, val_masks = split_train_val(image_folder, mask_folder, val_size=val_size)
 
@@ -31,7 +31,7 @@ def main():
     validation_steps = np.ceil(len(val_images) / batch_size)
 
     # 根据选择的模式执行不同的代码
-    mode = "TwoBand_attention"  # 或者 mode = "TwoBand"或者 "TwoBand_attention"
+    mode = "OneBand"  # 或者 mode = "TwoBand"或者 "TwoBand_attention"
 
 
     # 定义模式对应的函数字典
