@@ -26,6 +26,47 @@ def preprocess_image_twoband(image_path, target_size=(256, 256)):
     return image
 
 
+import numpy as np
+import rasterio
+from skimage import transform as trans
+import random
+from tensorflow.keras.preprocessing.image import random_rotation, random_shift, random_zoom
+
+
+def preprocess_image_threeband_762_with_augmentation(image_path, target_size=(256, 256), augmentation=True):
+    with rasterio.open(image_path) as src:
+        image = src.read([7, 6, 2])
+        image = np.moveaxis(image, 0, -1)  # 重排轴到(height, width, channels)
+        image = trans.resize(image, target_size, preserve_range=True)  # 调整大小
+
+        # 对每个波段进行标准化处理
+        for i in range(image.shape[-1]):
+            band = image[:, :, i]
+            mean = band.mean()
+            std = band.std()
+            if std > 0:
+                image[:, :, i] = (band - mean) / std
+            else:
+                image[:, :, i] = band - mean
+
+        # 应用数据增强
+        if augmentation:
+            # 随机旋转
+            if random.random() < 0.5:
+                image = random_rotation(image, rg=90)
+            # 随机翻转
+            if random.random() < 0.5:
+                image = np.fliplr(image)
+            if random.random() < 0.5:
+                image = np.flipud(image)
+
+
+    return image
+
+
+
+
+
 def preprocess_image_threeband_762(image_path, target_size=(256, 256)):
     """针对三波段tif影像的预处理函数，使用标准化"""
     with rasterio.open(image_path) as src:
@@ -108,7 +149,7 @@ def get_corresponding_image(mask_path, image_paths):
     """
     mask_basename = os.path.basename(mask_path)
     # 构建预期的图像文件名，通过删除 "Kumar-Roy" 来实现
-    expected_image_basename = mask_basename.replace("_Kumar-Roy", "")
+    expected_image_basename = mask_basename.replace("png", "tif")
 
     # 在图像路径列表中查找匹配的图像文件
     for image_path in image_paths:
@@ -116,11 +157,9 @@ def get_corresponding_image(mask_path, image_paths):
         if image_basename == expected_image_basename:
             return image_path
     return None  # 如果没有找到匹配的图像，返回 None
-# LC08_L1GT_166058_20200816_20200816_01_RT_p00738
-# LC08_L1GT_166058_20200816_20200816_01_RT_Kumar-Roy_p00738
 def split_train_val(image_folder, mask_folder, val_size):
     image_paths = glob.glob(os.path.join(image_folder, '*.tif'))
-    mask_paths = glob.glob(os.path.join(mask_folder, '*.tif'))
+    mask_paths = glob.glob(os.path.join(mask_folder, '*.png'))
 
     # 匹配掩码和图像，而不是简单地排序
     matched_image_paths = []
@@ -156,7 +195,7 @@ def split_train_val_test(image_folder, mask_folder, val_size, test_size):
     分割数据为训练集、验证集和测试集，并打印出分割的信息。
     """
     image_paths = glob.glob(os.path.join(image_folder, '*.tif'))
-    mask_paths = glob.glob(os.path.join(mask_folder, '*.tif'))
+    mask_paths = glob.glob(os.path.join(mask_folder, '*.png'))
 
     # 匹配掩码和图像，而不是简单地排序
     matched_image_paths = []
@@ -194,68 +233,55 @@ def split_train_val_test(image_folder, mask_folder, val_size, test_size):
     return train_images, train_masks, val_images, val_masks, test_images, test_masks
 
 
-def create_datagen_oneband(image_paths, mask_paths, batch_size, target_size,num_bands=1):
-    # 将图像和掩码路径列表转换为 pandas DataFrame
-    #image_df = pd.DataFrame({'filename': image_paths})
-    #mask_df = pd.DataFrame({'filename': mask_paths})
-
-    image_datagen = ImageDataGenerator(preprocessing_function=preprocess_image_oneband)
-    mask_datagen = ImageDataGenerator()
-
-    # 使用 DataFrame 代替列表
-    image_generator = image_datagen.flow_from_dataframe(
-        dataframe=image_df,
-        x_col='filename',
-        y_col=None,
-        class_mode=None,
-        color_mode='grayscale',
-        target_size=target_size,
-        batch_size=batch_size,
-        shuffle=False
-    )
-
-    mask_generator = mask_datagen.flow_from_dataframe(
-        dataframe=mask_df,
-        x_col='filename',
-        y_col=None,
-        class_mode=None,
-        color_mode='grayscale',
-        target_size=target_size,
-        batch_size=batch_size,
-        shuffle=False
-    )
-
-    while True:
-        img = next(image_generator)
-        mask = next(mask_generator)
-        yield img, mask
-
 class MultiBandDataGenerator(tf.keras.utils.Sequence):
-    def __init__(self, image_paths, mask_paths, batch_size, target_size, num_bands):
+    def __init__(self, image_paths, mask_paths, batch_size, target_size, num_bands,augmentation):
         self.image_paths = image_paths
         self.mask_paths = mask_paths
         self.batch_size = batch_size
         self.target_size = target_size
         self.num_bands = num_bands  # 新增参数以指定波段数
+        self.augmentation = augmentation
 
 
     def __len__(self):
         return np.ceil(len(self.image_paths) / self.batch_size).astype(int)
 
+
     def __getitem__(self, idx):
         batch_images = self.image_paths[idx * self.batch_size:(idx + 1) * self.batch_size]
         batch_masks = self.mask_paths[idx * self.batch_size:(idx + 1) * self.batch_size]
 
-        if self.num_bands == 2:
-            images = np.array([preprocess_image_twoband(image_path, self.target_size) for image_path in batch_images])
-        elif self.num_bands == 3:
-            images = np.array([preprocess_image_threeband_762(image_path, self.target_size) for image_path in batch_images])
-        elif self.num_bands == 10:
-            images = np.array([preprocess_image_tenband(image_path, self.target_size) for image_path in batch_images])
+        images = []
+        for image_path in batch_images:
+            if self.num_bands == 2:
+                image = preprocess_image_twoband(image_path, self.target_size)
+            elif self.num_bands == 3:
+                image = preprocess_image_threeband_762(image_path, self.target_size)
+            elif self.num_bands == 10:
+                image = preprocess_image_tenband(image_path, self.target_size)
+            else:
+                image = preprocess_image_multiband(image_path, self.target_size)
 
-        else:
-            images = np.array([preprocess_image_multiband(image_path, self.target_size) for image_path in batch_images])
+            # 应用数据增强
+            if self.augmentation:
+                image = self.apply_augmentation(image)
 
+            images.append(image)
+
+        images = np.array(images)
         masks = np.array([preprocess_mask(mask_path, self.target_size) for mask_path in batch_masks])
 
         return images, masks
+    def apply_augmentation(self, image):
+        # 这里添加你的数据增强代码
+        # 例如，随机旋转、翻转等
+        # 下面是一个简单的旋转示例
+        # 随机旋转
+        if random.random() < 0.5:
+            image = random_rotation(image, rg=90)
+        # 随机翻转
+        if random.random() < 0.5:
+            image = np.fliplr(image)
+        if random.random() < 0.5:
+            image = np.flipud(image)
+        return image

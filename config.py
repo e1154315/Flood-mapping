@@ -4,18 +4,19 @@
 
 
 config = {
-    "batch_size": 2,
+    "batch_size": 16,
     "target_size": (256, 256),
     "val_size": 0.2,
-    "epochs": 5,
+    "epochs": 50,
     "save_best_only": True,
-    "image_folder": 'Data/test/imgs/imgs',  # 图像文件夹路径
-    "mask_folder": 'Data/test/masks/masks',  # 掩模文件夹路径
+    "image_folder": 'Data/train/filter/set2_0.01/band_12',  # 图像文件夹路径
+    "mask_folder": 'Data/train/filter/set2_0.01/labels',  # 掩模文件夹路径
     "perform_test": True,  # 是否进行测试集分割和评估
-    "test_size": 0.3,
+    "test_size": 0.2,
     "plot_loss": True,
+    "augmentation": True,
 
-    "mode": "ThreeBand",
+    "mode": "TwoBand",
     "optimizer_name": "Adadelta",
     "learning_rate": 1.0,
     "rho": 0.95,

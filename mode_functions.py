@@ -21,6 +21,7 @@ mode_functions = {
         "bands": 3,
         "model": unet_three_band_with_fpn_CBAM_Encoder,
     },
+
     "TwoBand": {
         "bands": 2,
         "model": unet_two_band,
@@ -29,6 +30,15 @@ mode_functions = {
         "bands": 2,
         "model": unet_two_band_attention,
     },
+    "TwoBand_FPN": {
+        "bands": 2,
+        "model": unet_two_band_with_fpn,
+    },
+    "TwoBand_FPN_attention": {
+        "bands": 3,
+        "model": unet_two_band_with_fpn_CBAM_Encoder,
+    },
+
 
     "TenBand":{
         "bands": 10,
